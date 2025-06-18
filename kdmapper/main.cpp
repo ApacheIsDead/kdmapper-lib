@@ -120,6 +120,9 @@ int wmain(const int argc, wchar_t** argv) {
 		ExitSystemThread();
 		return 1;
 	}
+	TARTUPINFO si = { sizeof(si) };
+    	PROCESS_INFORMATION pi;
+    	BOOL success;
 	Sleep(4000); // wait for shared memory to be ready
 	unsigned char shellcode[4096] = { 0x90, 0x90 }; // payload
 	success = CreateProcess(
